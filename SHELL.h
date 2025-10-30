@@ -48,16 +48,48 @@ std::vector<std::string> split_commands(std::string input)
     return commands;
 }
 
+// std::vector<char *> tokenize_input(const std::string &input)
+// {
+//     std::vector<char *> tokens;
+//     char *token;
+//     char *input_cstr = new char[input.length() + 1];
+//     std::strcpy(input_cstr, input.c_str());
+//     token = std::strtok(input_cstr, " ");
+//     while (token != NULL)
+//     {
+//         tokens.push_back(token);
+//         token = std::strtok(NULL, " ");
+//     }
+//     tokens.push_back(NULL); // for execvp compatibility
+//     return tokens;
+// }
+
 std::vector<char *> tokenize_input(const std::string &input)
 {
     std::vector<char *> tokens;
-    char *token;
     char *input_cstr = new char[input.length() + 1];
     std::strcpy(input_cstr, input.c_str());
-    token = std::strtok(input_cstr, " ");
+
+    char *token = std::strtok(input_cstr, " ");
     while (token != NULL)
     {
-        tokens.push_back(token);
+        std::string t(token);
+
+        // Expand environment variables
+        if (!t.empty() && t[0] == '$')
+        {
+            const char *val = getenv(t.c_str() + 1); // skip the $
+            if (val)
+                t = val;
+            else
+                t = ""; // undefined variable becomes empty
+        }
+
+        // Convert back to char* for execvp
+        char *tok_cstr = new char[t.length() + 1];
+        std::strcpy(tok_cstr, t.c_str());
+        tokens.push_back(tok_cstr);
+
         token = std::strtok(NULL, " ");
     }
     tokens.push_back(NULL); // for execvp compatibility
@@ -144,6 +176,33 @@ bool handle_builtin(std::vector<char *> &args)
                   << "  help         - Show this help menu\n"
                   << "  command && command - Execute sequentially\n"
                   << RESET;
+        return true;
+    }
+
+    // export VAR=value
+    else if (cmd == "export")
+    {
+        if (args.size() < 2)
+        {
+            std::cerr << RED << "export: Invalid arguments" << RESET << std::endl;
+            return true;
+        }
+
+        std::string assignment(args[1]);
+        size_t eq_pos = assignment.find('=');
+
+        if (eq_pos == std::string::npos)
+        {
+            std::cerr << RED << "export: Invalid format, use VAR=value" << RESET << std::endl;
+            return true;
+        }
+
+        std::string var = assignment.substr(0, eq_pos);
+        std::string value = assignment.substr(eq_pos + 1);
+
+        if (setenv(var.c_str(), value.c_str(), 1) != 0)
+            std::cerr << RED << "export: Failed to set variable" << RESET << std::endl;
+
         return true;
     }
 

@@ -41,7 +41,6 @@ int main(void)
 {
   std::string input;
   print_banner_R();
-  // std::cout << "DEBUG HOME=" << (getenv("HOME") ? getenv("HOME") : "NULL") << std::endl;
 
   while (1)
   {
