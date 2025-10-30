@@ -1,5 +1,5 @@
 #ifndef SHELL_h
-# define SHELL_h
+#define SHELL_h
 
 #include <iostream>
 #include <unistd.h>
@@ -8,19 +8,19 @@
 #include <vector>
 #include <sys/wait.h>
 
-//COLORS for terminal output
-#define GREEN   "\033[1;32m"
-#define YELLOW  "\033[1;33m"
-#define RED     "\033[1;31m"
-#define BLUE    "\033[1;34m"
-#define CYAN    "\033[1;36m"
-#define RESET   "\033[0m"
-
+// COLORS for terminal output
+#define GREEN "\033[1;32m"
+#define YELLOW "\033[1;33m"
+#define RED "\033[1;31m"
+#define BLUE "\033[1;34m"
+#define CYAN "\033[1;36m"
+#define RESET "\033[0m"
 
 std::string trim(const std::string &s)
 {
     size_t start = s.find_first_not_of(" \t");
-    if (start == std::string::npos) return "";
+    if (start == std::string::npos)
+        return "";
     size_t end = s.find_last_not_of(" \t");
     return s.substr(start, end - start + 1);
 }
@@ -61,19 +61,18 @@ std::vector<char *> tokenize_input(const std::string &input)
     return tokens;
 }
 
-
-
 void print_banner_R(void)
 {
     std::cout << RED << R"(
-███╗   ███╗██╗   ██╗███████╗██╗  ██╗███████╗██╗     ██╗         ██╗   ██╗ ██╗
-████╗ ████║╚██╗ ██╔╝██╔════╝██║  ██║██╔════╝██║     ██║         ██║   ██║███║
-██╔████╔██║ ╚████╔╝ ███████╗███████║█████╗  ██║     ██║         ██║   ██║╚██║
-██║╚██╔╝██║  ╚██╔╝  ╚════██║██╔══██║██╔══╝  ██║     ██║         ╚██╗ ██╔╝ ██║
-██║ ╚═╝ ██║   ██║   ███████║██║  ██║███████╗███████╗███████╗     ╚████╔╝  ██║
-╚═╝     ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝      ╚═══╝   ╚═╝
+  █████████  █████       ████████  ████  ████ 
+ ███░░░░░███░░███       ███░░░░███░░███ ░░███ 
+░███    ░░░  ░███████  ░░░    ░███ ░███  ░███ 
+░░█████████  ░███░░███    ██████░  ░███  ░███ 
+ ░░░░░░░░███ ░███ ░███   ░░░░░░███ ░███  ░███ 
+ ███    ░███ ░███ ░███  ███   ░███ ░███  ░███ 
+░░█████████  ████ █████░░████████  █████ █████
+ ░░░░░░░░░  ░░░░ ░░░░░  ░░░░░░░░  ░░░░░ ░░░░░ 
 )" << RESET << std::endl;
 }
-
 
 #endif
