@@ -1,6 +1,6 @@
 #ifndef SHELL_h
 #define SHELL_h
-
+// Library includes
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
@@ -15,6 +15,9 @@
 #define BLUE "\033[1;34m"
 #define CYAN "\033[1;36m"
 #define RESET "\033[0m"
+
+// variables
+static std::string old_pwd = "";
 
 std::string trim(const std::string &s)
 {
@@ -68,14 +71,12 @@ bool handle_builtin(std::vector<char *> &args)
 
     std::string cmd = args[0];
 
-    // exit
     if (cmd == "exit")
     {
         std::cout << YELLOW << "Exiting shell..." << RESET << std::endl;
         exit(0);
     }
 
-    // cd
     else if (cmd == "cd")
     {
         std::string path;
@@ -97,7 +98,17 @@ bool handle_builtin(std::vector<char *> &args)
         {
             std::string arg = args[1];
 
-            if (arg[0] == '~')
+            if (arg == "-")
+            {
+                if (old_pwd.empty())
+                {
+                    std::cerr << RED << "cd: OLDPWD not set" << RESET << std::endl;
+                    return true;
+                }
+                path = old_pwd;
+                std::cout << path << std::endl;
+            }
+            else if (arg == "~")
             {
                 const char *home = getenv("HOME");
                 if (!home)
@@ -111,9 +122,11 @@ bool handle_builtin(std::vector<char *> &args)
             }
             else
             {
-                // Regular path
                 path = arg;
             }
+            std::string current_dir(1024, '\0');
+            if (getcwd(current_dir.data(), current_dir.size()) != NULL)
+                old_pwd = current_dir;
 
             if (chdir(path.c_str()) != 0)
             {
@@ -123,7 +136,6 @@ bool handle_builtin(std::vector<char *> &args)
         }
     }
 
-    // help
     else if (cmd == "help")
     {
         std::cout << CYAN << "Simple Shell Commands:\n"
