@@ -1,1 +1,18 @@
 .vscode/
+*.txt
+*.mermaid
+# Ignore common build/output directories
+bin/
+build/
+dist/
+
+# Ignore common executable/binary files
+*.exe
+a.out
+*.out
+*.o
+*.so
+*.a
+*.dll
+*.elf
+core
