@@ -1,5 +1,5 @@
 <p align="center">
-<pre>
+<pre style="font-weight: bold; color: #00FFAA;">
 
 ░█▀▀░█░█░█▀▀░▀█▀░█▀█░█▄█░░░█▀▀░█░█░█▀▀░█░░░█░░░░░▀█▀░█▀█░░░█▀▀░█▀█░█▀█
 ░█░░░█░█░▀▀█░░█░░█░█░█░█░░░▀▀█░█▀█░█▀▀░█░░░█░░░░░░█░░█░█░░░█░░░█▀▀░█▀▀
@@ -8,7 +8,9 @@
 </p>
 
 
-A simple Unix-like shell built in C++ that supports:
+<p align="center">
+<b><i>A Simple Unix-like Shell built in C++</i></b>
+</p>
 - Command execution
 - Multiple commands using `&&`
 - Exit command
