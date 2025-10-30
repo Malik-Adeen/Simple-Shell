@@ -11,10 +11,12 @@
 <p align="center">
 <b><i>A Simple Unix-like Shell built in C++</i></b>
 </p>
-- Command execution
-- Multiple commands using `&&`
-- Exit command
-- Colored prompt showing current working directory
+
+### 🚀 Features
+- Command execution  
+- Multiple commands using `&&`  
+- Exit command  
+- Colored prompt showing current working directory  
 
 ## Build Instructions
 ```bash
