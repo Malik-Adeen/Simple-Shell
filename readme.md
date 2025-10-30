@@ -18,5 +18,5 @@
 
 ## Build Instructions
 ```bash
-g++ shell.cpp -o shell
+g++ main.cpp shell.cpp -o shell
 ./shell
