@@ -61,6 +61,83 @@ std::vector<char *> tokenize_input(const std::string &input)
     return tokens;
 }
 
+bool handle_builtin(std::vector<char *> &args)
+{
+    if (args.empty() || args[0] == nullptr)
+        return false;
+
+    std::string cmd = args[0];
+
+    // exit
+    if (cmd == "exit")
+    {
+        std::cout << YELLOW << "Exiting shell..." << RESET << std::endl;
+        exit(0);
+    }
+
+    // cd
+    else if (cmd == "cd")
+    {
+        std::string path;
+
+        if (args[1] == NULL)
+        {
+            // No argument → go to home directory
+            const char *home = getenv("HOME");
+            if (!home)
+            {
+                std::cerr << RED << "cd: HOME not set" << RESET << std::endl;
+                return true;
+            }
+            path = std::string(home);
+            chdir(path.c_str());
+            return true;
+        }
+        else
+        {
+            std::string arg = args[1];
+
+            if (arg[0] == '~')
+            {
+                const char *home = getenv("HOME");
+                if (!home)
+                {
+                    std::cerr << RED << "cd: HOME not set" << RESET << std::endl;
+                    return true;
+                }
+
+                // Replace ~ with $HOME
+                path = std::string(home) + arg.substr(1);
+            }
+            else
+            {
+                // Regular path
+                path = arg;
+            }
+
+            if (chdir(path.c_str()) != 0)
+            {
+                std::cerr << RED << "cd: " << "Invalid directory" << RESET << std::endl;
+            }
+            return true;
+        }
+    }
+
+    // help
+    else if (cmd == "help")
+    {
+        std::cout << CYAN << "Simple Shell Commands:\n"
+                  << "  cd <dir>     - Change directory\n"
+                  << "  exit         - Exit the shell\n"
+                  << "  help         - Show this help menu\n"
+                  << "  command && command - Execute sequentially\n"
+                  << RESET;
+        return true;
+    }
+
+    return false; // not a built-in
+}
+
 void print_banner_R(void)
 {
     std::cout << RED << R"(

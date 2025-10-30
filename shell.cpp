@@ -21,11 +21,7 @@ void shell_launch(std::vector<char *> args)
 
   if (args.size() == 1) // empty input
     return;
-  if (strcmp(args[0], "exit") == 0)
-  {
-    std::cout << YELLOW << "Exiting shell..." << RESET << std::endl;
-    exit(0);
-  }
+
   if (fork() == 0)
   {
     if (execvp(args[0], args.data()) == -1)
@@ -45,6 +41,7 @@ int main(void)
 {
   std::string input;
   print_banner_R();
+  // std::cout << "DEBUG HOME=" << (getenv("HOME") ? getenv("HOME") : "NULL") << std::endl;
 
   while (1)
   {
@@ -61,6 +58,10 @@ int main(void)
         break;
 
       std::vector<char *> args = tokenize_input(cmd);
+
+      if (handle_builtin(args))
+        continue;
+
       if (fork() == 0)
       {
         if (execvp(args[0], args.data()) == -1)
