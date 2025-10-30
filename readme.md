@@ -11,11 +11,30 @@
 </p>
 
 ### 🚀 Features
-- Command execution  
-- Multiple commands using `&&`  
-- Exit command  
-- Colored prompt showing current working directory  
+### Built-in Commands
+- `cd <dir>` — Change the current working directory  
+  - Supports `cd -` to return to the previous directory  
+  - Supports `cd ~` to go to the home directory  
+- `exit` — Exit the shell  
+- `help` — Display available commands and usage  
+- `export VAR=value` — Set environment variables for the shell session  
 
+### Command Execution
+- Execute system commands using `execvp`  
+- Supports multiple commands sequentially with `&&`  
+- Handles empty commands gracefully  
+
+### Pipes
+- Supports single and multiple chained pipes using `|`  
+- Example: `ls | grep cpp | wc -l`  
+
+### Environment Variable Expansion
+- Supports `$VAR` in commands  
+- Example:  
+  ```bash
+  export MYVAR=Hello
+  echo $MYVAR
+  
 ## Build Instructions
 ```bash
 g++ main.cpp shell.cpp -o shell
