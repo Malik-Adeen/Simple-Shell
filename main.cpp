@@ -69,10 +69,23 @@ int main(void)
 
       if (fork() == 0)
       {
-        if (execvp(args[0], args.data()) == -1)
+        handle_redirection(cmd);
+
+        std::vector<char *> child_args = tokenize_input(cmd);
+        if (child_args.empty() || child_args[0] == NULL)
         {
-          std::cerr << RED << "Error executing: " << args[0] << RESET
+          for (char *arg : child_args)
+            delete[] arg;
+          exit(EXIT_SUCCESS);
+        }
+        if (execvp(child_args[0], child_args.data()) == -1)
+        {
+          std::cerr << RED << "Error executing: " << child_args[0] << RESET
                     << std::endl;
+          for (char *arg : child_args)
+          {
+            delete[] arg;
+          }
           exit(EXIT_FAILURE);
         }
       }
@@ -81,6 +94,10 @@ int main(void)
         int status;
         wait(&status);
         success = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+      }
+      for (char *arg : args)
+      {
+        delete[] arg;
       }
     }
   }

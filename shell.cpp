@@ -80,6 +80,7 @@ std::vector<char *> tokenize_input(const std::string &input)
         token = std::strtok(NULL, " ");
     }
     tokens.push_back(NULL); // for execvp compatibility
+    delete[] input_cstr;
     return tokens;
 }
 
@@ -109,11 +110,28 @@ void execute_pipes(const std::string &input)
                 close(pipefd[1]);
             }
 
+            handle_redirection(pipe_cmds[i]);
+
             std::vector<char *> args = tokenize_input(pipe_cmds[i]);
+
+            if (args.empty() || args[0] == NULL)
+            {
+                // Clean up tokens before exiting
+                for (char *arg : args)
+                {
+                    delete[] arg;
+                }
+                exit(EXIT_SUCCESS);
+            }
+
             if (!handle_builtin(args))
                 execvp(args[0], args.data());
 
             perror("execvp");
+            for (char *arg : args)
+            {
+                delete[] arg;
+            }
             exit(EXIT_FAILURE);
         }
         else
@@ -129,6 +147,52 @@ void execute_pipes(const std::string &input)
 
             wait(NULL);
         }
+    }
+}
+
+void handle_redirection(std::string &cmd)
+{
+    int fd;
+    size_t pos;
+
+    if ((pos = cmd.find(">>")) != std::string::npos)
+    {
+        std::string filename = trim(cmd.substr(pos + 2));
+        cmd = trim(cmd.substr(0, pos));
+        fd = open(filename.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+        if (fd < 0)
+        {
+            std::cerr << RED << "Error opening file for appending: " << filename << RESET << std::endl;
+            return;
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+    else if ((pos = cmd.find(">")) != std::string::npos)
+    {
+        std::string filename = trim(cmd.substr(pos + 1));
+        cmd = trim(cmd.substr(0, pos));
+        fd = open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0)
+        {
+            std::cerr << RED << "Error opening file for writing: " << filename << RESET << std::endl;
+            return;
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+    else if ((pos = cmd.find("<")) != std::string::npos)
+    {
+        std::string filename = trim(cmd.substr(pos + 1));
+        cmd = trim(cmd.substr(0, pos));
+        fd = open(filename.c_str(), O_RDONLY);
+        if (fd < 0)
+        {
+            std::cerr << RED << "Error opening file for reading: " << filename << RESET << std::endl;
+            return;
+        }
+        dup2(fd, STDIN_FILENO);
+        close(fd);
     }
 }
 

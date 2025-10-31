@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <vector>
 #include <sys/wait.h>
-
+#include <fcntl.h>
 // COLORS for terminal output
 #define GREEN "\033[1;32m"
 #define YELLOW "\033[1;33m"
@@ -28,4 +28,5 @@ std::vector<char *> tokenize_input(const std::string &input);
 void execute_pipes(const std::string &input);
 bool handle_builtin(std::vector<char *> &args);
 void print_banner_R(void);
+void handle_redirection(std::string &cmd);
 #endif

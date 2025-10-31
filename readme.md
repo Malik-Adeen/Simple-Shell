@@ -1,8 +1,12 @@
 <p align="center">
 <pre>
-░█▀▀░█░█░█▀▀░▀█▀░█▀█░█▄█░░░█▀▀░█░█░█▀▀░█░░░█░░░░░▀█▀░█▀█░░░█▀▀░█▀█░█▀█
-░█░░░█░█░▀▀█░░█░░█░█░█░█░░░▀▀█░█▀█░█▀▀░█░░░█░░░░░░█░░█░█░░░█░░░█▀▀░█▀▀
-░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░░▀▀▀░▀░▀░░░▀▀▀░▀░░░▀░░
+
+
+      ░█▀▀░█░█░█▀▀░▀█▀░█▀█░█▄█░░░█▀▀░█░█░█▀▀░█░░░█░░░░░▀█▀░█▀█░░░█▀▀░█▀█░█▀█
+      ░█░░░█░█░▀▀█░░█░░█░█░█░█░░░▀▀█░█▀█░█▀▀░█░░░█░░░░░░█░░█░█░░░█░░░█▀▀░█▀▀
+      ░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░░▀▀▀░▀░▀░░░▀▀▀░▀░░░▀░░
+
+
 </pre>
 </p>
 
@@ -31,11 +35,19 @@
 ### Environment Variable Expansion
 - Supports `$VAR` in commands  
 - Example:  
-  ```bash
-  export MYVAR=Hello
-  echo $MYVAR
-  
+```bash
+export MYVAR=Hello
+echo $MYVAR
+```
+### Input/Output Redirection 
+- Redirect output using > and >>
+``` bash
+echo "Hello" > file.txt
+echo "World" >> file.txt
+cat < file.txt
+```
 ## Build Instructions
 ```bash
 g++ main.cpp shell.cpp -o shell
 ./shell
+```
