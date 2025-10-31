@@ -26,6 +26,7 @@ std::string trim(const std::string &s);
 std::vector<std::string> split_commands(std::string input);
 std::vector<std::string> split_pipes(const std::string &input);
 std::vector<char *> tokenize_input(const std::string &input);
+std::vector<std::string> split_by_ampersand(const std::string &input);
 void execute_pipes(const std::string &input, bool is_background);
 bool handle_builtin(std::vector<char *> &args);
 void handle_redirection(std::string &cmd);

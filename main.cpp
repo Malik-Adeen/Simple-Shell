@@ -74,112 +74,134 @@ int main(void)
     if (input.empty())
       continue;
 
-    std::vector<std::string> commands = split_commands(input);
+    // Outer loop: splits by "&&"
+    std::vector<std::string> logical_commands = split_commands(input);
     bool success = true;
 
-    for (auto &cmd : commands)
+    for (auto &cmd_group : logical_commands)
     {
       if (!success)
-        break;
+        break; // Stop processing '&&' chain if a command fails
 
-      bool is_background = false;
-      std::string trimmed_cmd = trim(cmd);
-      if (!trimmed_cmd.empty() && trimmed_cmd.back() == '&')
+      // Check if the whole '&&' group ends with &
+      bool group_has_trailing_amp = false;
+      std::string trimmed_group = trim(cmd_group);
+      if (!trimmed_group.empty() && trimmed_group.back() == '&')
       {
-        is_background = true;
-        cmd = trim(trimmed_cmd.substr(0, trimmed_cmd.length() - 1));
+        group_has_trailing_amp = true;
       }
 
-      if (cmd.find('|') != std::string::npos)
-      {
-        execute_pipes(cmd, is_background);
-        // Note: 'success' is not correctly updated by execute_pipes
-        // for the '&&' chain. We'll assume success for now.
-        continue;
-      }
+      // Inner loop: splits the group by "&"
+      std::vector<std::string> bg_commands = split_by_ampersand(cmd_group);
 
-      std::vector<char *> args = tokenize_input(cmd);
-
-      if (handle_builtin(args))
+      for (size_t i = 0; i < bg_commands.size(); ++i)
       {
-        for (char *arg : args)
+        std::string cmd = bg_commands[i];
+        if (cmd.empty())
+          continue;
+
+        bool is_background = true; // Assume background since it was split by '&'
+        if (i == bg_commands.size() - 1 && !group_has_trailing_amp)
         {
-          delete[] arg;
+          is_background = false;
         }
-        continue;
-      }
 
-      pid_t pid = fork();
-
-      if (pid < 0) // failure in forking
-      {
-        std::cerr << RED << "Error forking" << RESET << std::endl;
-        success = false;
-      }
-
-      if (pid == 0)
-      {
-
-        if (is_background)
+        // --- This is your original execution logic ---
+        if (cmd.find('|') != std::string::npos)
         {
-          // Redirect stdin from /dev/null
-          int devNullIn = open("/dev/null", O_RDONLY);
-          if (devNullIn != -1)
-          {
-            dup2(devNullIn, STDIN_FILENO);
-            close(devNullIn);
-          }
-
-          // Redirect stdout and stderr to /dev/null
-          int devNullOut = open("/dev/null", O_WRONLY);
-          if (devNullOut != -1)
-          {
-            dup2(devNullOut, STDOUT_FILENO);
-            dup2(devNullOut, STDERR_FILENO);
-            close(devNullOut);
-          }
+          execute_pipes(cmd, is_background);
+          continue;
         }
-        handle_redirection(cmd);
 
-        std::vector<char *> child_args = tokenize_input(cmd);
-        if (child_args.empty() || child_args[0] == NULL)
+        std::vector<char *> args = tokenize_input(cmd);
+
+        if (handle_builtin(args))
         {
-          for (char *arg : child_args)
-            delete[] arg;
-          exit(EXIT_SUCCESS);
-        }
-        if (execvp(child_args[0], child_args.data()) == -1)
-        {
-          std::cerr << RED << "Error executing: " << child_args[0] << RESET
-                    << std::endl;
-          for (char *arg : child_args)
+          for (char *arg : args)
           {
             delete[] arg;
           }
-          exit(EXIT_FAILURE);
+          continue;
         }
-      }
-      else
-      {
-        if (is_background)
+
+        pid_t pid = fork();
+
+        if (pid < 0) // failure in forking
         {
-          // Background job: Print PID and DO NOT wait
-          std::cout << BLUE << "[+] Background job started: " << pid << RESET << std::endl;
-          success = true; // Allow '&&' chain to continue
+          std::cerr << RED << "Error forking" << RESET << std::endl;
+          success = false;
+          break; // Exit inner loop
         }
-        else
+
+        if (pid == 0) // --- CHILD PROCESS ---
         {
-          // Foreground job: Wait for it to finish
-          int status;
-          wait(&status);
-          success = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+          if (is_background)
+          {
+            // Redirect stdin, stdout, stderr to /dev/null
+            int devNullIn = open("/dev/null", O_RDONLY);
+            int devNullOut = open("/dev/null", O_WRONLY);
+            if (devNullIn != -1)
+            {
+              dup2(devNullIn, STDIN_FILENO);
+              close(devNullIn);
+            }
+            if (devNullOut != -1)
+            {
+              dup2(devNullOut, STDOUT_FILENO);
+              dup2(devNullOut, STDERR_FILENO);
+              close(devNullOut);
+            }
+          }
+
+          handle_redirection(cmd);
+
+          std::vector<char *> child_args = tokenize_input(cmd);
+          if (child_args.empty() || child_args[0] == NULL)
+          {
+            for (char *arg : child_args)
+              delete[] arg;
+            exit(EXIT_SUCCESS);
+          }
+          if (execvp(child_args[0], child_args.data()) == -1)
+          {
+            std::cerr << RED << "Error executing: " << child_args[0] << RESET
+                      << std::endl;
+            for (char *arg : child_args)
+            {
+              delete[] arg;
+            }
+            exit(EXIT_FAILURE);
+          }
         }
-        for (char *arg : args)
+        else // --- PARENT PROCESS ---
         {
-          delete[] arg;
+          if (is_background)
+          {
+            // Background job: Print PID and DO NOT wait
+            std::cout << BLUE << "[+] Background job started: " << pid << RESET << std::endl;
+            success = true; // '&&' chain considers this a "success"
+          }
+          else
+          {
+            // Foreground job: Wait for it to finish
+            int status;
+            waitpid(pid, &status, 0); // Use waitpid
+            success = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+          }
+          for (char *arg : args)
+          {
+            delete[] arg;
+          }
         }
-      }
-    }
-  }
+
+        if (!is_background && !success)
+        {
+          // The foreground job failed, so stop processing
+          // the rest of this '&&' group.
+          break;
+        }
+      } // End of inner 'for' loop (bg_commands)
+    } // End of outer 'for' loop (logical_commands)
+  } // End of while(1)
   return EXIT_SUCCESS;
 }

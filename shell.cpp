@@ -51,6 +51,31 @@ std::vector<std::string> split_pipes(const std::string &input)
     return commands;
 }
 
+// This new function splits a command string by '&'
+// It assumes '&&' has already been handled.
+std::vector<std::string> split_by_ampersand(const std::string &input)
+{
+    std::vector<std::string> commands;
+    size_t pos = 0;
+    std::string s = input;
+
+    while ((pos = s.find('&')) != std::string::npos)
+    {
+        std::string cmd = trim(s.substr(0, pos));
+        if (!cmd.empty())
+            commands.push_back(cmd);
+        s.erase(0, pos + 1);
+    }
+
+    std::string remaining = trim(s);
+    if (!remaining.empty())
+    {
+        commands.push_back(remaining);
+    }
+
+    return commands;
+}
+
 std::vector<char *> tokenize_input(const std::string &input)
 {
     std::vector<char *> tokens;
