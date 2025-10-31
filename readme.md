@@ -42,6 +42,15 @@ echo "Hello" > file.txt
 echo "World" >> file.txt
 cat < file.txt
 ```
+
+### Background Execution (`&`)
+
+Allow running commands in the background, e.g.
+
+```bash
+sleep 10 &
+```
+
 ## Build Instructions
 ```bash
 g++ main.cpp shell.cpp -o shell
