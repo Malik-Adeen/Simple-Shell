@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sstream>
 // COLORS for terminal output
 #define GREEN "\033[1;32m"
 #define YELLOW "\033[1;33m"

@@ -76,36 +76,95 @@ std::vector<std::string> split_by_ampersand(const std::string &input)
     return commands;
 }
 
+// std::vector<char *> tokenize_input(const std::string &input)
+// {
+//     std::vector<char *> tokens;
+//     char *input_cstr = new char[input.length() + 1];
+//     std::strcpy(input_cstr, input.c_str());
+
+//     char *token = std::strtok(input_cstr, " ");
+//     while (token != NULL)
+//     {
+//         std::string t(token);
+
+//         // Expand environment variables
+//         if (!t.empty() && t[0] == '$')
+//         {
+//             const char *val = getenv(t.c_str() + 1); // skip the $
+//             if (val)
+//                 t = val;
+//             else
+//                 t = ""; // undefined variable becomes empty
+//         }
+
+//         // Convert back to char* for execvp
+//         char *tok_cstr = new char[t.length() + 1];
+//         std::strcpy(tok_cstr, t.c_str());
+//         tokens.push_back(tok_cstr);
+
+//         token = std::strtok(NULL, " ");
+//     }
+//     tokens.push_back(NULL); // for execvp compatibility
+//     delete[] input_cstr;
+//     return tokens;
+// }
+
 std::vector<char *> tokenize_input(const std::string &input)
 {
     std::vector<char *> tokens;
-    char *input_cstr = new char[input.length() + 1];
-    std::strcpy(input_cstr, input.c_str());
+    std::stringstream ss(input);
+    std::string token_str;
+    char c;
 
-    char *token = std::strtok(input_cstr, " ");
-    while (token != NULL)
+    while (ss.get(c))
     {
-        std::string t(token);
+        if (std::isspace(c))
+            continue;
 
-        // Expand environment variables
-        if (!t.empty() && t[0] == '$')
+        token_str.clear();
+
+        if (c == '\"')
         {
-            const char *val = getenv(t.c_str() + 1); // skip the $
-            if (val)
-                t = val;
-            else
-                t = ""; // undefined variable becomes empty
+            while (ss.get(c) && c != '\"')
+            {
+                token_str += c;
+            }
+        }
+        else if (c == '\'') // Handle single-quoted string
+        {
+            while (ss.get(c) && c != '\'')
+            {
+                token_str += c;
+            }
+        }
+        else
+        {
+            token_str += c;
+            while (ss.peek() != EOF && !std::isspace(ss.peek()))
+            {
+                ss.get(c);
+                token_str += c;
+            }
         }
 
-        // Convert back to char* for execvp
-        char *tok_cstr = new char[t.length() + 1];
-        std::strcpy(tok_cstr, t.c_str());
-        tokens.push_back(tok_cstr);
+        if (!token_str.empty() && token_str[0] == '$')
+        {
+            const char *val = getenv(token_str.c_str() + 1);
+            if (val)
+                token_str = val;
+            else
+                token_str = "";
+        }
 
-        token = std::strtok(NULL, " ");
+        if (!token_str.empty())
+        {
+            char *tok_cstr = new char[token_str.length() + 1];
+            std::strcpy(tok_cstr, token_str.c_str());
+            tokens.push_back(tok_cstr);
+        }
     }
-    tokens.push_back(NULL); // for execvp compatibility
-    delete[] input_cstr;
+
+    tokens.push_back(NULL);
     return tokens;
 }
 
