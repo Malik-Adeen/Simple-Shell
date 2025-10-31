@@ -84,10 +84,11 @@ std::vector<char *> tokenize_input(const std::string &input)
     return tokens;
 }
 
-void execute_pipes(const std::string &input)
+void execute_pipes(const std::string &input, bool is_background)
 {
     std::vector<std::string> pipe_cmds = split_pipes(input);
     int prev_fd = -1; // previous pipe read end
+    std::vector<pid_t> pids;
 
     for (size_t i = 0; i < pipe_cmds.size(); ++i)
     {
@@ -95,8 +96,35 @@ void execute_pipes(const std::string &input)
         if (i != pipe_cmds.size() - 1)
             pipe(pipefd); // create pipe except for last command
 
-        if (fork() == 0) // child
+        pid_t pid = fork();
+        if (pid == 0) // child
         {
+            if (is_background)
+            {
+                // Redirect stdin for the *first* command
+                if (i == 0)
+                {
+                    int devNullIn = open("/dev/null", O_RDONLY);
+                    if (devNullIn != -1)
+                    {
+                        dup2(devNullIn, STDIN_FILENO);
+                        close(devNullIn);
+                    }
+                }
+
+                // Redirect stdout/stderr for the *last* command
+                if (i == pipe_cmds.size() - 1)
+                {
+                    int devNullOut = open("/dev/null", O_WRONLY);
+                    if (devNullOut != -1)
+                    {
+                        dup2(devNullOut, STDOUT_FILENO);
+                        dup2(devNullOut, STDERR_FILENO);
+                        close(devNullOut);
+                    }
+                }
+            }
+
             if (prev_fd != -1)
             {
                 dup2(prev_fd, STDIN_FILENO); // read from previous pipe
@@ -134,8 +162,10 @@ void execute_pipes(const std::string &input)
             }
             exit(EXIT_FAILURE);
         }
-        else
+        else if (pid > 0)
         {
+            pids.push_back(pid);
+
             if (prev_fd != -1)
                 close(prev_fd); // close previous read end
 
@@ -145,7 +175,31 @@ void execute_pipes(const std::string &input)
                 prev_fd = pipefd[0]; // save read end for next command
             }
 
-            wait(NULL);
+            // wait(NULL);
+        }
+        else
+        {
+            perror("fork");
+        }
+    }
+    // --- AFTER THE LOOP ---
+    // Parent waits for all children ONLY if it's a foreground job
+    if (!is_background)
+    {
+        int status;
+        for (pid_t p : pids)
+        {
+            waitpid(p, &status, 0);
+            // Note: 'success' bool for '&&' is not updated here,
+            // but this correctly waits for the pipeline.
+        }
+    }
+    else
+    {
+        // For a background job, just print the PID of the last command
+        if (!pids.empty())
+        {
+            std::cout << BLUE << "[+] Background pipeline started: " << pids.back() << RESET << std::endl;
         }
     }
 }
