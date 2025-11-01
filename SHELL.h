@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sstream>
+#include <cerrno>
 // COLORS for terminal output
 #define GREEN "\033[1;32m"
 #define YELLOW "\033[1;33m"

@@ -76,39 +76,6 @@ std::vector<std::string> split_by_ampersand(const std::string &input)
     return commands;
 }
 
-// std::vector<char *> tokenize_input(const std::string &input)
-// {
-//     std::vector<char *> tokens;
-//     char *input_cstr = new char[input.length() + 1];
-//     std::strcpy(input_cstr, input.c_str());
-
-//     char *token = std::strtok(input_cstr, " ");
-//     while (token != NULL)
-//     {
-//         std::string t(token);
-
-//         // Expand environment variables
-//         if (!t.empty() && t[0] == '$')
-//         {
-//             const char *val = getenv(t.c_str() + 1); // skip the $
-//             if (val)
-//                 t = val;
-//             else
-//                 t = ""; // undefined variable becomes empty
-//         }
-
-//         // Convert back to char* for execvp
-//         char *tok_cstr = new char[t.length() + 1];
-//         std::strcpy(tok_cstr, t.c_str());
-//         tokens.push_back(tok_cstr);
-
-//         token = std::strtok(NULL, " ");
-//     }
-//     tokens.push_back(NULL); // for execvp compatibility
-//     delete[] input_cstr;
-//     return tokens;
-// }
-
 std::vector<char *> tokenize_input(const std::string &input)
 {
     std::vector<char *> tokens;
@@ -183,6 +150,10 @@ void execute_pipes(const std::string &input, bool is_background)
         pid_t pid = fork();
         if (pid == 0) // child
         {
+            if (!is_background)
+            {
+                signal(SIGINT, SIG_DFL); // Reset Ctrl+C to default
+            }
             if (is_background)
             {
                 // Redirect stdin for the *first* command

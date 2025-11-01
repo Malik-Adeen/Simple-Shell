@@ -27,6 +27,13 @@ std::string get_input(void)
   std::cout << GREEN << cwd << " $ " << RESET;
   if (!getline(std::cin, buff))
   {
+    // Check if getline was interrupted by a signal (like Ctrl+C)
+    if (errno == EINTR)
+    {
+      errno = 0;              // Reset the error flag
+      std::cout << std::endl; // Print a newline to clean up the ^C
+      return "";              // Return empty string to loop again
+    }
     std::cerr << RED << "Error reading input" << RESET << std::endl;
   }
   return buff;
@@ -57,6 +64,8 @@ int main(void)
 {
   std::string input;
   print_banner_R();
+
+  signal(SIGINT, SIG_IGN); // Ignore Ctrl+C in the main shell
 
   struct sigaction sa;
   sa.sa_handler = &handle_sigchld; // Set the handler function
@@ -135,6 +144,10 @@ int main(void)
 
         if (pid == 0) // --- CHILD PROCESS ---
         {
+          if (!is_background)
+          {
+            signal(SIGINT, SIG_DFL); // Reset Ctrl+C to default
+          }
           if (is_background)
           {
             // Redirect stdin, stdout, stderr to /dev/null
