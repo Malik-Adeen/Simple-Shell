@@ -1,18 +1,67 @@
 #include "SHELL.h"
 
+std::vector<Job> jobs_list;
+
+int get_next_jid()
+{
+  int max_jid = 0;
+  for (const auto &job : jobs_list)
+  {
+    if (job.jid > max_jid)
+    {
+      max_jid = job.jid;
+    }
+  }
+  return max_jid + 1;
+}
+
+// void handle_sigchld(int sig)
+// {
+//   (void)sig; // Suppress unused parameter warning
+//   int status;
+//   pid_t pid;
+
+//   // Reap all terminated children without blocking
+//   while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+//   {
+//     // Using cout in a signal handler is not strictly safe,
+//     // but it's common for simple shells.
+//     std::cout << std::endl
+//               << BLUE << "[+] Background job finished: " << pid << RESET << std::endl;
+//   }
+// }
+
 void handle_sigchld(int sig)
 {
   (void)sig; // Suppress unused parameter warning
   int status;
   pid_t pid;
 
-  // Reap all terminated children without blocking
+  // --- REPLACE YOUR OLD FUNCTION WITH THIS ---
   while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
   {
-    // Using cout in a signal handler is not strictly safe,
-    // but it's common for simple shells.
-    std::cout << std::endl
-              << BLUE << "[+] Background job finished: " << pid << RESET << std::endl;
+    // A child process finished
+    std::string cmd_str = "Unknown";
+    bool found = false;
+
+    // Find the job in our list
+    for (auto it = jobs_list.begin(); it != jobs_list.end(); ++it)
+    {
+      if (it->pid == pid)
+      {
+        cmd_str = it->command;
+        jobs_list.erase(it); // Remove from list
+        found = true;
+        break;
+      }
+    }
+
+    if (found)
+    {
+      // Print the "Done" message with the command name
+      std::cout << std::endl
+                << BLUE << "[" << "Done" << "] " << cmd_str << RESET << std::endl;
+    }
   }
 }
 
@@ -190,9 +239,16 @@ int main(void)
         {
           if (is_background)
           {
-            // Background job: Print PID and DO NOT wait
-            std::cout << BLUE << "[+] Background job started: " << pid << RESET << std::endl;
-            success = true; // '&&' chain considers this a "success"
+            Job new_job;
+            new_job.pid = pid;
+            new_job.jid = get_next_jid();
+            new_job.command = cmd; // The command string
+            new_job.status = RUNNING;
+            jobs_list.push_back(new_job);
+
+            // Print [jid] pid
+            std::cout << BLUE << "[" << new_job.jid << "] " << new_job.pid << RESET << std::endl;
+            success = true; // Allow '&&' chain to continue
           }
           else
           {

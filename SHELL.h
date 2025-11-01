@@ -11,6 +11,8 @@
 #include <signal.h>
 #include <sstream>
 #include <cerrno>
+#include <vector>
+
 // COLORS for terminal output
 #define GREEN "\033[1;32m"
 #define YELLOW "\033[1;33m"
@@ -19,11 +21,27 @@
 #define CYAN "\033[1;36m"
 #define RESET "\033[0m"
 
+enum JobStatus
+{
+    RUNNING,
+    STOPPED // For later when we add Ctrl+Z
+};
+
+struct Job
+{
+    int jid;
+    pid_t pid;
+    std::string command;
+    JobStatus status;
+};
+
 // variables
+extern std::vector<Job> jobs_list;
 static std::string old_pwd = "";
 
 // prototypes
 bool handle_builtin(std::vector<char *> &args);
+int get_next_jid();
 std::string trim(const std::string &s);
 std::vector<std::string> split_commands(std::string input);
 std::vector<std::string> split_pipes(const std::string &input);

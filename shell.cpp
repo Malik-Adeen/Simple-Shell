@@ -254,7 +254,14 @@ void execute_pipes(const std::string &input, bool is_background)
         // For a background job, just print the PID of the last command
         if (!pids.empty())
         {
-            std::cout << BLUE << "[+] Background pipeline started: " << pids.back() << RESET << std::endl;
+            Job new_job;
+            new_job.pid = pids.back(); // Use last PID as the representative
+            new_job.jid = get_next_jid();
+            new_job.command = input; // The whole pipe string
+            new_job.status = RUNNING;
+            jobs_list.push_back(new_job);
+
+            std::cout << BLUE << "[" << new_job.jid << "] " << new_job.pid << RESET << std::endl;
         }
     }
 }
@@ -412,6 +419,16 @@ bool handle_builtin(std::vector<char *> &args)
         if (setenv(var.c_str(), value.c_str(), 1) != 0)
             std::cerr << RED << "export: Failed to set variable" << RESET << std::endl;
 
+        return true;
+    }
+    else if (cmd == "jobs")
+    {
+        for (const auto &job : jobs_list)
+        {
+            std::cout << "[" << job.jid << "] "
+                      << (job.status == RUNNING ? "Running " : "Stopped ")
+                      << "\t" << job.command << std::endl;
+        }
         return true;
     }
 
