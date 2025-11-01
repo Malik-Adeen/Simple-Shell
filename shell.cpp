@@ -135,6 +135,118 @@ std::vector<char *> tokenize_input(const std::string &input)
     return tokens;
 }
 
+void handle_fg(int jid)
+{
+    pid_t pid = -1;
+    std::string cmd_str = "";
+    Job *job_to_fg = nullptr;
+
+    // 1. Find the job in the list
+    for (auto &job : jobs_list)
+    {
+        if (job.jid == jid)
+        {
+            pid = job.pid;
+            cmd_str = job.command;
+            job_to_fg = &job;
+            break;
+        }
+    }
+
+    if (pid == -1)
+    {
+        std::cerr << RED << "fg: job not found: %" << jid << RESET << std::endl;
+        return;
+    }
+
+    // 2. Give terminal control to the job's process group
+    //    We use -pid because 'pid' is the process group ID (since we did setpgid(0,0))
+    if (tcsetpgrp(STDIN_FILENO, pid) < 0)
+    {
+        perror("tcsetpgrp");
+        return;
+    }
+
+    // 3. Send a "continue" signal (SIGCONT) in case it was stopped
+    if (kill(-pid, SIGCONT) < 0)
+    {
+        perror("kill (SIGCONT)");
+        return;
+    }
+
+    // 4. Wait for the job to finish (just like a normal foreground job)
+    int status;
+    waitpid(pid, &status, WUNTRACED); // We'll add WUNTRACED later for Ctrl+Z
+
+    // 5. Take back terminal control
+    tcsetpgrp(STDIN_FILENO, getpid());
+
+    // 6. Check how it exited (we'll expand this later)
+    if (WIFEXITED(status) || WIFSIGNALED(status))
+    {
+        // Job finished (normally or by signal), so remove it
+        for (auto it = jobs_list.begin(); it != jobs_list.end(); ++it)
+        {
+            if (it->jid == jid)
+            {
+                jobs_list.erase(it);
+                break;
+            }
+        }
+    }
+    else if (WIFSTOPPED(status))
+    {
+        // Job was stopped again! Update its status.
+        if (job_to_fg != nullptr)
+        {
+            job_to_fg->status = STOPPED;
+            std::cout << std::endl
+                      << "[" << job_to_fg->jid << "] Stopped\t" << job_to_fg->command << std::endl;
+        }
+    }
+}
+
+void handle_bg(int jid)
+{
+    pid_t pid = -1;
+    Job *job_to_bg = nullptr; // Use a pointer
+
+    // 1. Find the job in the list
+    for (auto &job : jobs_list)
+    {
+        if (job.jid == jid)
+        {
+            pid = job.pid;
+            job_to_bg = &job; // Store a pointer to the job
+            break;
+        }
+    }
+
+    if (pid == -1 || job_to_bg == nullptr)
+    {
+        std::cerr << RED << "bg: job not found: %" << jid << RESET << std::endl;
+        return;
+    }
+
+    // 2. Check if the job is actually stopped
+    if (job_to_bg->status == RUNNING)
+    {
+        std::cerr << RED << "bg: job %" << jid << " is already running" << RESET << std::endl;
+        return;
+    }
+
+    // 3. Send a "continue" signal (SIGCONT)
+    if (kill(-pid, SIGCONT) < 0)
+    {
+        perror("kill (SIGCONT)");
+        return;
+    }
+
+    // 4. Update the job's status
+    job_to_bg->status = RUNNING;
+    std::cout << "[" << job_to_bg->jid << "] " << job_to_bg->command << " &" << std::endl;
+}
+
 void execute_pipes(const std::string &input, bool is_background)
 {
     std::vector<std::string> pipe_cmds = split_pipes(input);
@@ -150,9 +262,16 @@ void execute_pipes(const std::string &input, bool is_background)
         pid_t pid = fork();
         if (pid == 0) // child
         {
+            setpgid(0, 0); // put child in its own process group
             if (!is_background)
             {
-                signal(SIGINT, SIG_DFL); // Reset Ctrl+C to default
+                signal(SIGINT, SIG_DFL);  // Reset Ctrl+C to default
+                signal(SIGTSTP, SIG_DFL); // Reset Ctrl+Z to default
+                if (i == 0)
+                {
+                    // Give terminal control to the new foreground process group
+                    tcsetpgrp(STDIN_FILENO, getpid());
+                }
             }
             if (is_background)
             {
@@ -248,6 +367,9 @@ void execute_pipes(const std::string &input, bool is_background)
             // Note: 'success' bool for '&&' is not updated here,
             // but this correctly waits for the pipeline.
         }
+
+        // Take back terminal control
+        tcsetpgrp(STDIN_FILENO, getpid());
     }
     else
     {
@@ -429,6 +551,46 @@ bool handle_builtin(std::vector<char *> &args)
                       << (job.status == RUNNING ? "Running " : "Stopped ")
                       << "\t" << job.command << std::endl;
         }
+        return true;
+    }
+    else if (cmd == "fg")
+    {
+        if (args[1] == NULL)
+        {
+            std::cerr << RED << "fg: expected job ID (e.g., %1)" << RESET << std::endl;
+            return true;
+        }
+
+        std::string jid_str = args[1];
+        if (jid_str[0] == '%') // Remove the '%'
+        {
+            jid_str = jid_str.substr(1);
+        }
+
+        int jid = std::stoi(jid_str);
+
+        // This helper function (which we'll write next) does all the work
+        handle_fg(jid);
+        return true;
+    }
+    else if (cmd == "bg")
+    {
+        if (args[1] == NULL)
+        {
+            std::cerr << RED << "bg: expected job ID (e.g., %1)" << RESET << std::endl;
+            return true;
+        }
+
+        std::string jid_str = args[1];
+        if (jid_str[0] == '%') // Remove the '%'
+        {
+            jid_str = jid_str.substr(1);
+        }
+
+        int jid = std::stoi(jid_str);
+
+        // This helper function (which we'll write next) does all the work
+        handle_bg(jid);
         return true;
     }
 

@@ -15,22 +15,6 @@ int get_next_jid()
   return max_jid + 1;
 }
 
-// void handle_sigchld(int sig)
-// {
-//   (void)sig; // Suppress unused parameter warning
-//   int status;
-//   pid_t pid;
-
-//   // Reap all terminated children without blocking
-//   while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-//   {
-//     // Using cout in a signal handler is not strictly safe,
-//     // but it's common for simple shells.
-//     std::cout << std::endl
-//               << BLUE << "[+] Background job finished: " << pid << RESET << std::endl;
-//   }
-// }
-
 void handle_sigchld(int sig)
 {
   (void)sig; // Suppress unused parameter warning
@@ -114,7 +98,25 @@ int main(void)
   std::string input;
   print_banner_R();
 
-  signal(SIGINT, SIG_IGN); // Ignore Ctrl+C in the main shell
+  // Put shell in its own process group
+  if (setpgid(getpid(), getpid()) < 0)
+  {
+    perror("setpgid");
+    exit(EXIT_FAILURE);
+  }
+  // Take control of the terminal
+  if (tcsetpgrp(STDIN_FILENO, getpid()) < 0)
+  {
+    perror("tcsetpgrp");
+    exit(EXIT_FAILURE);
+  }
+
+  // Ignore Ctrl+C in the main shell
+  signal(SIGINT, SIG_IGN);
+  // Ignore terminal write signals (for background processes)
+  signal(SIGTTOU, SIG_IGN);
+  // Ignore Ctrl+Z (SIGTSTP) in the parent shell
+  signal(SIGTSTP, SIG_IGN);
 
   struct sigaction sa;
   sa.sa_handler = &handle_sigchld; // Set the handler function
@@ -193,9 +195,13 @@ int main(void)
 
         if (pid == 0) // --- CHILD PROCESS ---
         {
+          setpgid(0, 0);            // this will put the child in its own process group
+          signal(SIGINT, SIG_DFL);  // Reset Ctrl+C to default
+          signal(SIGTSTP, SIG_DFL); // Reset Ctrl+Z to default
           if (!is_background)
           {
-            signal(SIGINT, SIG_DFL); // Reset Ctrl+C to default
+            // Give terminal control to the new foreground job
+            tcsetpgrp(STDIN_FILENO, getpid());
           }
           if (is_background)
           {
@@ -254,8 +260,24 @@ int main(void)
           {
             // Foreground job: Wait for it to finish
             int status;
-            waitpid(pid, &status, 0); // Use waitpid
+            waitpid(pid, &status, WUNTRACED); // <-- Add WUNTRACED
             success = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+
+            // Take back terminal control
+            tcsetpgrp(STDIN_FILENO, getpid());
+
+            if (WIFSTOPPED(status))
+            {
+              // The job was stopped (Ctrl+Z)
+              std::cout << std::endl;
+              Job new_job;
+              new_job.pid = pid;
+              new_job.jid = get_next_jid();
+              new_job.command = cmd;
+              new_job.status = STOPPED; // <-- Set status
+              jobs_list.push_back(new_job);
+              std::cout << "[" << new_job.jid << "] Stopped\t" << new_job.command << std::endl;
+            }
           }
           for (char *arg : args)
           {
