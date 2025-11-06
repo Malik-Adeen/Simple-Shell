@@ -1,6 +1,29 @@
 #include "SHELL.h"
 
 std::vector<Job> jobs_list;
+struct termios orig_termios;
+std::vector<std::string> command_history;
+int history_index = 0;
+
+void disable_raw_mode()
+{
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+}
+
+void enable_raw_mode()
+{
+    tcgetattr(STDIN_FILENO, &orig_termios);
+    atexit(disable_raw_mode); // Ensure we restore terminal on exit
+
+    struct termios raw = orig_termios;
+    // Disable:
+    // ECHO: Don't print characters automatically (we will do it manually)
+    // ICANON: Turn off canonical mode (read byte-by-byte, not line-by-line)
+    raw.c_lflag &= ~(ECHO | ICANON);
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
+//
 
 int get_next_jid()
 {
@@ -51,25 +74,168 @@ void handle_sigchld(int sig)
 
 std::string get_input(void)
 {
-  std::string buff = "", cwd(1024, '\0');
-  if (NULL == getcwd(cwd.data(), cwd.size()))
-  {
-    std::cerr << RED << "Error getting current working directory" << RESET
-              << std::endl;
-  }
-  std::cout << GREEN << cwd << " $ " << RESET;
-  if (!getline(std::cin, buff))
-  {
-    // Check if getline was interrupted by a signal (like Ctrl+C)
-    if (errno == EINTR)
+    std::string cwd(1024, '\0');
+    if (NULL == getcwd(cwd.data(), cwd.size()))
     {
-      errno = 0;              // Reset the error flag
-      std::cout << std::endl; // Print a newline to clean up the ^C
-      return "";              // Return empty string to loop again
+        std::cerr << RED << "Error getting current working directory" << RESET
+                  << std::endl;
     }
-    std::cerr << RED << "Error reading input" << RESET << std::endl;
-  }
-  return buff;
+    std::cout << GREEN << cwd << " $ " << RESET << std::flush; // Use flush instead of endl
+
+    enable_raw_mode();
+
+    std::string cmd_buffer;
+    int cursor_pos = 0;
+    char c;
+    while (read(STDIN_FILENO, &c, 1) == 1)
+    {
+        // Check for Enter key (\r or \n)
+        if (c == '\r' || c == '\n')
+        {
+            std::cout << std::endl; // Print a real newline to move to the next line
+            break;
+        }
+        // Check for Ctrl+C (byte value 3)
+        else if (c == 3) 
+        {
+            std::cout << "^C" << std::endl;
+            cmd_buffer.clear(); // Clear whatever was typed
+            disable_raw_mode(); // Must disable raw mode before returning!
+            return "";          // Return empty string to show new prompt
+        }
+        // Check for Ctrl+D (byte value 4, End of Transmission)
+        else if (c == 4)
+        {
+            if (cmd_buffer.empty())
+            {
+                std::cout << "exit" << std::endl;
+                disable_raw_mode();
+                exit(0); // Exit shell on empty Ctrl+D
+            }
+        }
+        else if (c == 127 || c == 8)
+        {
+           if (cursor_pos > 0)
+            {
+                // Remove char BEFORE cursor
+                cmd_buffer.erase(cursor_pos - 1, 1);
+                cursor_pos--;
+                
+                // Move cursor back one space
+                std::cout << "\b" << std::flush;
+                
+                // Re-print the rest of the line from the new cursor position
+                std::cout << cmd_buffer.substr(cursor_pos) << " " << std::flush;
+                
+                // Move cursor back to its correct position
+                // We printed (len - pos) characters, plus one space.
+                for (int i = cursor_pos; i < (int)cmd_buffer.length() + 1; i++)
+                {
+                     std::cout << "\b";
+                }
+                std::cout << std::flush;
+            }
+        }
+        // ... inside while(read(...)) ...
+
+        // Check for Escape Sequence (Arrow Keys start with \x1b)
+        else if (c == 27)
+        {
+            char seq[2];
+            // Try to read the next 2 bytes
+            if (read(STDIN_FILENO, &seq[0], 1) == 1 &&
+                read(STDIN_FILENO, &seq[1], 1) == 1)
+            {
+                if (seq[0] == '[')
+                {
+                    switch (seq[1])
+                    {
+                       case 'A': // Up Arrow
+                            if (history_index > 0)
+                            {
+                                history_index--;
+                                // 1. Erase current line from screen
+                                while (cmd_buffer.length() > 0)
+                                {
+                                    std::cout << "\b \b" << std::flush;
+                                    cmd_buffer.pop_back();
+                                }
+                                // 2. Load command from history
+                                cmd_buffer = command_history[history_index];
+                                // 3. Print it to screen
+                                std::cout << cmd_buffer << std::flush;
+
+                                cursor_pos = cmd_buffer.length();
+                            }
+                            break;
+                        case 'B': // Down Arrow
+                            if (history_index < (int)command_history.size())
+                            {
+                                history_index++;
+                                // 1. Erase current line
+                                while (cmd_buffer.length() > 0)
+                                {
+                                    std::cout << "\b \b" << std::flush;
+                                    cmd_buffer.pop_back();
+                                }
+                                // 2. Load command (or empty if at the end)
+                                if (history_index < (int)command_history.size())
+                                {
+                                    cmd_buffer = command_history[history_index];
+                                    std::cout << cmd_buffer << std::flush;
+                                }
+                                cursor_pos = cmd_buffer.length();
+                            }
+                            break;
+                       case 'C': // Right Arrow
+                            if (cursor_pos < (int)cmd_buffer.length())
+                            {
+                                cursor_pos++;
+                                std::cout << "\033[C" << std::flush; // ANSI escape to move right
+                            }
+                            break;
+                        case 'D': // Left Arrow
+                            if (cursor_pos > 0)
+                            {
+                                cursor_pos--;
+                                std::cout << "\b" << std::flush; // Move cursor back
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+        // Handle normal printable characters
+        else if (!iscntrl(c)) 
+        {
+            if (cursor_pos == (int)cmd_buffer.length())
+            {
+                // Normal append at the end
+                cmd_buffer += c;
+                cursor_pos++;
+                std::cout << c << std::flush;
+            }
+            else
+            {
+                // Insert in the middle
+                cmd_buffer.insert(cursor_pos, 1, c);
+                
+                // We have to reprint the WHOLE rest of the line
+                std::cout << cmd_buffer.substr(cursor_pos) << std::flush;
+                
+                // Now we have to move the cursor BACK to where it should be
+                // because printing pushed it all the way to the end.
+                cursor_pos++;
+                for (int i = cursor_pos; i < (int)cmd_buffer.length(); i++)
+                {
+                     std::cout << "\b";
+                }
+                std::cout << std::flush;
+            }
+        }
+    }
+    disable_raw_mode();
+    return cmd_buffer;
 }
 
 void shell_launch(std::vector<char *> args)
@@ -133,6 +299,9 @@ int main(void)
     input = get_input();
     if (input.empty())
       continue;
+
+    command_history.push_back(input);
+    history_index = command_history.size();
 
     // Outer loop: splits by "&&"
     std::vector<std::string> logical_commands = split_commands(input);

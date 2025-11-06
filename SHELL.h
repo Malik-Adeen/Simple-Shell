@@ -12,6 +12,7 @@
 #include <sstream>
 #include <cerrno>
 #include <vector>
+#include <termios.h> // to handle raw input from the terminal
 
 // COLORS for terminal output
 #define GREEN "\033[1;32m"
@@ -47,6 +48,8 @@ std::vector<std::string> split_commands(std::string input);
 std::vector<std::string> split_pipes(const std::string &input);
 std::vector<char *> tokenize_input(const std::string &input);
 std::vector<std::string> split_by_ampersand(const std::string &input);
+void enable_raw_mode();  
+void disable_raw_mode(); 
 void handle_fg(int jid);
 void handle_bg(int jid);
 void execute_pipes(const std::string &input, bool is_background);
