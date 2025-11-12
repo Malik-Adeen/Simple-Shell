@@ -1,8 +1,8 @@
 <p align="center">
 <pre>
-       ░█▀▀░█░█░█▀▀░▀█▀░█▀█░█▄█░░░█▀▀░█░█░█▀▀░█░░░█░░░░░▀█▀░█▀█░░░█▀▀░█▀█░█▀█
-       ░█░░░█░█░▀▀█░░█░░█░█░█░█░░░▀▀█░█▀█░█▀▀░█░░░█░░░░░░█░░█░█░░░█░░░█▀▀░█▀▀
-       ░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░░▀▀▀░▀░▀░░░▀▀▀░▀░░░▀░░
+           ░█▀▀░█░█░█▀▀░▀█▀░█▀█░█▄█░░░█▀▀░█░█░█▀▀░█░░░█░░░░░▀█▀░█▀█░░░█▀▀░█▀█░█▀█
+           ░█░░░█░█░▀▀█░░█░░█░█░█░█░░░▀▀█░█▀█░█▀▀░█░░░█░░░░░░█░░█░█░░░█░░░█▀▀░█▀▀
+           ░▀▀▀░▀▀▀░▀▀▀░░▀░░▀▀▀░▀░▀░░░▀▀▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░░░▀▀▀░▀░▀░░░▀▀▀░▀░░░▀░░
 </pre>
 </p>
 
@@ -10,15 +10,32 @@
 <b>A Simple Unix-like Shell built in C++</b>
 </p>
 
-### 🚀 Features
+##  Features
 
 ### Command Execution
 
-  * Execute system commands using `execvp`.
-  * Supports multiple commands sequentially with `&&`.
-  * Handles empty commands gracefully.
+  - Execute system commands using `execvp`.
+  - Supports multiple commands sequentially with `&&`.
+  - Handles empty commands gracefully.
 
-### 🧠 Smart Parsing & Variable Expansion
+
+### Interactive Line Editor
+
+The shell uses a raw-mode terminal interface (`<termios.h>`) to provide a modern, interactive user experience.
+
+- **Command History**: Navigate previously executed commands using the **Up** and **Down** arrow keys.  
+- **Line Editing**: Edit the current command line with support for:
+  - **Cursor Movement**: Use the **Left** and **Right** arrow keys to move the cursor non-destructively.
+  - **Insertion**: Type characters in the middle of a line.
+  - **Deletion**: Use the **Backspace** key to delete characters from any cursor position.
+
+- **Tab Completion**:
+  - Automatically completes file and directory names.
+  - Completes to the longest common prefix for multiple matches.
+  - Completes the full name and appends a space for a single match.
+
+
+### Smart Parsing & Variable Expansion
 
   * Handles arguments with spaces using both **single (`'`)** and **double (`"`)** quotes.
   ```bash
@@ -49,7 +66,7 @@
   cat < file.txt
   ```
 
-### 🔧 Full Job Control
+### Full Job Control
 
 The shell provides a complete job control system, allowing for true multitasking.
 
