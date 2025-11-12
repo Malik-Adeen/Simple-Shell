@@ -9,6 +9,8 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <algorithm>
+#include <dirent.h>
 #include <sstream>
 #include <cerrno>
 #include <vector>
@@ -48,7 +50,8 @@ std::vector<std::string> split_commands(std::string input);
 std::vector<std::string> split_pipes(const std::string &input);
 std::vector<char *> tokenize_input(const std::string &input);
 std::vector<std::string> split_by_ampersand(const std::string &input);
-void enable_raw_mode();  
+void enable_raw_mode();
+void handle_tab_completion(std::string& cmd_buffer, int& cursor_pos);  
 void disable_raw_mode(); 
 void handle_fg(int jid);
 void handle_bg(int jid);

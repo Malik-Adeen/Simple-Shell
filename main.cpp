@@ -113,6 +113,14 @@ std::string get_input(void)
                 exit(0); // Exit shell on empty Ctrl+D
             }
         }
+        // Check for Tab Key
+        else if (c == 9) // 9 is the byte for Tab
+        {
+            // --- REPLACE THIS ---
+            // std::cout << "[TAB]" << std::flush;
+            // --- WITH THIS ---
+            handle_tab_completion(cmd_buffer, cursor_pos);
+        }
         else if (c == 127 || c == 8)
         {
            if (cursor_pos > 0)

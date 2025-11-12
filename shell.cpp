@@ -13,6 +13,113 @@ std::string trim(const std::string &s)
     return s.substr(start, end - start + 1);
 }
 
+std::string find_longest_common_prefix(std::vector<std::string>& matches)
+{
+    if (matches.empty()) return "";
+
+    std::string prefix = matches[0];
+    for (size_t i = 1; i < matches.size(); ++i)
+    {
+        int len = std::min((int)prefix.length(), (int)matches[i].length());
+        int j = 0;
+        while (j < len && prefix[j] == matches[i][j])
+        {
+            j++;
+        }
+        prefix = prefix.substr(0, j);
+        if (prefix.empty()) return "";
+    }
+    return prefix;
+}
+
+void get_completions(std::string word, std::vector<std::string>& matches)
+{
+    DIR* dir = opendir("."); // Open current directory
+    if (dir == NULL) return;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        std::string name = entry->d_name;
+        // Check if the directory entry starts with the word we're completing
+        if (name.rfind(word, 0) == 0) 
+        {
+            // If it's a directory, add a trailing slash
+            if (entry->d_type == DT_DIR)
+            {
+                name += "/";
+            }
+            matches.push_back(name);
+        }
+    }
+    closedir(dir);
+}
+
+void handle_tab_completion(std::string& cmd_buffer, int& cursor_pos)
+{
+    // For now, we only support tab-completion at the end of the line
+    if (cursor_pos != (int)cmd_buffer.length())
+    {
+        return; // Too complex to insert in the middle, just return.
+    }
+
+    // 1. Find the word we need to complete
+    size_t start_of_word = cmd_buffer.find_last_of(" ");
+    std::string word_to_complete;
+
+    if (start_of_word == std::string::npos) // No space, it's the first word
+    {
+        word_to_complete = cmd_buffer;
+        start_of_word = 0;
+    }
+    else // It's a word after a space
+    {
+        word_to_complete = cmd_buffer.substr(start_of_word + 1);
+        start_of_word++; // Point index to the start of the word
+    }
+
+    // 2. Get all possible matches
+    std::vector<std::string> matches;
+    get_completions(word_to_complete, matches);
+
+    if (matches.empty())
+    {
+        return; // No matches, do nothing
+    }
+
+    std::string part_to_add;
+    if (matches.size() == 1)
+    {
+        // 3a. Only one match: complete the whole thing
+        std::string completion = matches[0];
+        part_to_add = completion.substr(word_to_complete.length());
+
+        // Add a space at the end if it's not a directory
+        if (completion.back() != '/')
+        {
+            part_to_add += " ";
+        }
+    }
+    else
+    {
+        // 3b. Multiple matches: complete the longest common prefix
+        std::string prefix = find_longest_common_prefix(matches);
+        if (prefix.length() > word_to_complete.length())
+        {
+            part_to_add = prefix.substr(word_to_complete.length());
+        }
+        // (Future improvement: on a second tab press, list all options)
+    }
+
+    // 4. Update the buffer and print the completed part to the screen
+    if (!part_to_add.empty())
+    {
+        cmd_buffer.insert(cursor_pos, part_to_add);
+        std::cout << part_to_add << std::flush;
+        cursor_pos += part_to_add.length();
+    }
+}
+
 std::vector<std::string> split_commands(std::string input)
 {
     std::vector<std::string> commands;
